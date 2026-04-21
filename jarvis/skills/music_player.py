@@ -14,12 +14,11 @@ logger = logging.getLogger(__name__)
 def _get_volume_control():
     """Get Windows volume control interface."""
     try:
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        from comtypes import CLSCTX_ALL
+        from pycaw.pycaw import AudioUtilities
         
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = interface.QueryInterface(IAudioEndpointVolume)
+        # Get speakers and return the EndpointVolume interface
+        speakers = AudioUtilities.GetSpeakers()
+        volume = speakers.EndpointVolume
         return volume
     except Exception as e:
         logger.warning(f"Could not get volume control: {e}")

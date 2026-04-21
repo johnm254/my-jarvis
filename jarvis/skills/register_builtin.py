@@ -29,6 +29,7 @@ from jarvis.skills.music_player import MusicPlayerSkill
 from jarvis.skills.computer_diagnostics import ComputerDiagnosticsSkill
 from jarvis.skills.system_optimizer import SystemOptimizerSkill
 from jarvis.skills.computer_control import ComputerControlSkill
+from jarvis.skills.document_automation import DocumentAutomationSkill
 
 
 def register_all_builtin_skills():
@@ -272,6 +273,15 @@ def register_all_builtin_skills():
             category="system",
             author="JARVIS",
             tags=["control", "keyboard", "mouse", "navigation", "automation"],
+            source="builtin"
+        )),
+        (DocumentAutomationSkill(), SkillMetadata(
+            name="document_automation",
+            version="1.0.0",
+            description="Create, format, and manage Word documents with email notifications",
+            category="productivity",
+            author="JARVIS",
+            tags=["documents", "word", "automation", "email", "formatting"],
             source="builtin"
         )),
         

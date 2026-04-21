@@ -26,6 +26,7 @@ from jarvis.skills.music_player import MusicPlayerSkill
 from jarvis.skills.get_weather import GetWeatherSkill
 from jarvis.skills.web_search import WebSearchSkill
 from jarvis.skills.computer_control import ComputerControlSkill
+from jarvis.skills.document_automation import DocumentAutomationSkill
 from jarvis.memory.memory_system import MemorySystem
 
 
@@ -87,6 +88,9 @@ class ConversationalJARVIS:
         self.optimizer = SystemOptimizerSkill()
         self.music = MusicPlayerSkill()
         self.weather = GetWeatherSkill()
+        self.search = WebSearchSkill()
+        self.control = ComputerControlSkill()
+        self.documents = DocumentAutomationSkill()
         self.search = WebSearchSkill()
         self.control = ComputerControlSkill()
         
@@ -537,6 +541,79 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
         if "click" in user_input:
             self.control.execute(action="click")
             self.speak("Clicked")
+            return
+        
+        # Document automation commands
+        if any(word in user_input for word in ["create document", "write document", "open word", "write letter", "write report", "write memo"]):
+            self.speak("I'll help you create a document. Let me get the details.")
+            
+            # Extract document type
+            document_type = "document"
+            if "letter" in user_input:
+                document_type = "letter"
+            elif "report" in user_input:
+                document_type = "report"
+            elif "memo" in user_input:
+                document_type = "memo"
+            elif "proposal" in user_input:
+                document_type = "proposal"
+            
+            # Extract requirements from the input
+            requirements = user_input
+            
+            # Get user email for notification
+            user_email = os.getenv("NOTIFICATION_EMAIL", "")
+            
+            self.speak(f"Creating a {document_type} for you. This will take a moment.")
+            
+            # Execute complete workflow
+            result = self.documents.execute(
+                action="complete_workflow",
+                document_type=document_type,
+                requirements=requirements,
+                recipient_email=user_email,
+                filename=f"{document_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+            
+            if result.success:
+                workflow_result = result.result
+                if workflow_result.get("workflow_complete", False):
+                    filename = workflow_result.get("filename", "document")
+                    self.speak(f"Document created successfully! I've saved it as {filename} and sent you an email notification.")
+                else:
+                    error = workflow_result.get("error", "Unknown error")
+                    self.speak(f"I had trouble creating the document: {error}")
+            else:
+                self.speak(f"I couldn't create the document: {result.error_message}")
+            return
+        
+        # Email notification commands
+        if any(word in user_input for word in ["send me email", "email me", "notify me", "text me"]):
+            user_email = os.getenv("NOTIFICATION_EMAIL", "")
+            if not user_email:
+                self.speak("I don't have your email address configured. Please set NOTIFICATION_EMAIL in your .env file.")
+                return
+            
+            # Extract the message content
+            message = user_input.replace("send me email", "").replace("email me", "").replace("notify me", "").replace("text me", "").strip()
+            if not message:
+                message = "Hello! This is a test notification from JARVIS."
+            
+            self.speak("Sending you an email notification.")
+            
+            from jarvis.skills.email_notifier import EmailNotifierSkill
+            email_skill = EmailNotifierSkill()
+            
+            result = email_skill.execute(
+                to=user_email,
+                subject="JARVIS Notification",
+                body=f"Hello!\n\nJARVIS here with your requested notification:\n\n{message}\n\nBest regards,\nJARVIS"
+            )
+            
+            if result.success:
+                self.speak("Email sent successfully!")
+            else:
+                self.speak(f"I couldn't send the email: {result.error_message}")
             return
         
         # Natural conversation - use LLM

@@ -12,10 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 def _get_volume_control():
+    """Get Windows volume control interface."""
     try:
-        from pycaw.pycaw import AudioUtilities
-        return AudioUtilities.GetSpeakers().EndpointVolume
-    except Exception:
+        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+        from comtypes import CLSCTX_ALL
+        
+        devices = AudioUtilities.GetSpeakers()
+        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        volume = interface.QueryInterface(IAudioEndpointVolume)
+        return volume
+    except Exception as e:
+        logger.warning(f"Could not get volume control: {e}")
         return None
 
 
@@ -23,79 +30,123 @@ def _set_volume(level: float) -> bool:
     """Set system volume 0.0–1.0."""
     vol = _get_volume_control()
     if vol:
-        vol.SetMasterVolumeLevelScalar(max(0.0, min(1.0, level)), None)
-        return True
-    # Fallback: nircmd or powershell
+        try:
+            vol.SetMasterVolumeLevelScalar(max(0.0, min(1.0, level)), None)
+            logger.info(f"Volume set to {int(level * 100)}%")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to set volume: {e}")
+    
+    # Fallback: Use nircmd if available
     try:
-        pct = int(level * 100)
-        subprocess.run(
-            ["powershell", "-c",
-             f"$obj = New-Object -ComObject WScript.Shell; "
-             f"for($i=0;$i -lt 50;$i++){{$obj.SendKeys([char]174)}}; "
-             f"for($i=0;$i -lt {pct//2};$i++){{$obj.SendKeys([char]175)}}"],
-            capture_output=True, timeout=5
-        )
+        pct = int(level * 65535)  # nircmd uses 0-65535 range
+        subprocess.run(["nircmd.exe", "setsysvolume", str(pct)], 
+                      capture_output=True, timeout=2)
         return True
     except Exception:
-        return False
+        pass
+    
+    return False
 
 
 def _get_volume() -> int:
+    """Get current system volume (0-100)."""
     vol = _get_volume_control()
     if vol:
-        return int(vol.GetMasterVolumeLevelScalar() * 100)
-    return 50
+        try:
+            current = vol.GetMasterVolumeLevelScalar()
+            return int(current * 100)
+        except Exception as e:
+            logger.warning(f"Failed to get volume: {e}")
+    return 50  # Default fallback
 
 
 def _change_volume(delta: float) -> int:
+    """Change volume by delta (-1.0 to +1.0)."""
     current = _get_volume() / 100.0
     new = max(0.0, min(1.0, current + delta))
     _set_volume(new)
     return int(new * 100)
 
 
-def _mute_toggle(mute: bool):
+def _mute_toggle(mute: bool) -> bool:
+    """Mute or unmute system audio."""
     vol = _get_volume_control()
     if vol:
-        vol.SetMute(1 if mute else 0, None)
-        return True
-    # Fallback: mute key
+        try:
+            vol.SetMute(1 if mute else 0, None)
+            logger.info(f"Audio {'muted' if mute else 'unmuted'}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to toggle mute: {e}")
+    
+    # Fallback: Use nircmd
     try:
-        subprocess.run(
-            ["powershell", "-c",
-             "(New-Object -ComObject WScript.Shell).SendKeys([char]173)"],
-            capture_output=True, timeout=3
-        )
+        cmd = "mutesysvolume 1" if mute else "mutesysvolume 0"
+        subprocess.run(["nircmd.exe"] + cmd.split(), 
+                      capture_output=True, timeout=2)
         return True
     except Exception:
-        return False
+        pass
+    
+    return False
 
 
 def _play_on_youtube(query: str):
-    """Open YouTube search and auto-click first result using pyautogui."""
-    import webbrowser, time
-
+    """Open YouTube and auto-play first result using pyautogui."""
+    import webbrowser
+    import time
+    
+    # Open YouTube search
     search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
     webbrowser.open(search_url)
-
-    # Wait for browser to load then use keyboard to navigate to first video
-    time.sleep(4)
+    
+    # Wait for page to load
+    time.sleep(5)
+    
     try:
         import pyautogui
         pyautogui.FAILSAFE = False
-        # Tab to first video link and press Enter
-        pyautogui.hotkey('alt', 'tab')  # focus browser
-        time.sleep(0.5)
-        # Press Tab several times to reach first video, then Enter
-        for _ in range(5):
-            pyautogui.press('tab')
-            time.sleep(0.15)
-        pyautogui.press('enter')
-        logger.info(f"Auto-clicked first YouTube result for: {query}")
+        
+        # Method 1: Click on first video thumbnail
+        # Move to approximate position of first video (adjust if needed)
+        screen_width, screen_height = pyautogui.size()
+        
+        # First video is usually around 20% from left, 30% from top
+        first_video_x = int(screen_width * 0.20)
+        first_video_y = int(screen_height * 0.30)
+        
+        # Move mouse to first video position
+        pyautogui.moveTo(first_video_x, first_video_y, duration=0.5)
+        time.sleep(0.3)
+        
+        # Click to play
+        pyautogui.click()
+        time.sleep(1)
+        
+        # Press 'f' for fullscreen (optional)
+        # pyautogui.press('f')
+        
+        logger.info(f"Auto-played YouTube video for: {query}")
         return True
+        
     except Exception as e:
-        logger.warning(f"pyautogui auto-click failed: {e}")
-        return False
+        logger.warning(f"pyautogui auto-play failed: {e}")
+        
+        # Fallback: Try keyboard navigation
+        try:
+            import pyautogui
+            time.sleep(2)
+            # Tab to first video and press Enter
+            for _ in range(8):
+                pyautogui.press('tab')
+                time.sleep(0.2)
+            pyautogui.press('enter')
+            logger.info(f"Auto-played via keyboard for: {query}")
+            return True
+        except Exception as e2:
+            logger.warning(f"Keyboard fallback failed: {e2}")
+            return False
 
 
 class MusicPlayerSkill(Skill):

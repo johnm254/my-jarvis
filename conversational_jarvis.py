@@ -314,6 +314,38 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
         
         # Check for specific actions first
         
+        # Volume control
+        if any(word in user_input for word in ["volume", "louder", "quieter", "sound"]):
+            if "up" in user_input or "louder" in user_input or "increase" in user_input:
+                result = self.music.execute(action="volume_up")
+                if result.success:
+                    self.speak(f"Volume increased to {result.result['volume']}%")
+                return
+            elif "down" in user_input or "quieter" in user_input or "decrease" in user_input or "lower" in user_input:
+                result = self.music.execute(action="volume_down")
+                if result.success:
+                    self.speak(f"Volume decreased to {result.result['volume']}%")
+                return
+            elif "mute" in user_input:
+                result = self.music.execute(action="mute")
+                self.speak("Audio muted")
+                return
+            elif "unmute" in user_input:
+                result = self.music.execute(action="unmute")
+                self.speak("Audio unmuted")
+                return
+            elif any(char.isdigit() for char in user_input):
+                # Extract number from input
+                import re
+                numbers = re.findall(r'\d+', user_input)
+                if numbers:
+                    level = int(numbers[0])
+                    if 0 <= level <= 100:
+                        result = self.music.execute(action="set_volume", level=level)
+                        if result.success:
+                            self.speak(f"Volume set to {level}%")
+                        return
+        
         # Music/Songs
         if any(word in user_input for word in ["play", "music", "song", "spotify"]):
             if "play" in user_input:
@@ -323,9 +355,12 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
                     play_idx = words.index("play")
                     if play_idx + 1 < len(words):
                         song_query = " ".join(words[play_idx + 1:])
-                        result = self.play_music(song_query)
-                        self.speak(result)
-                        return
+                        # Remove common words
+                        song_query = song_query.replace("some", "").replace("a", "").strip()
+                        if song_query:
+                            result = self.play_music(song_query)
+                            self.speak(result)
+                            return
             
             result = self.play_music()
             self.speak(result)

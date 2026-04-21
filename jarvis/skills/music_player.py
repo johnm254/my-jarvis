@@ -92,7 +92,7 @@ def _mute_toggle(mute: bool) -> bool:
 
 
 def _play_on_youtube(query: str):
-    """Open YouTube and auto-play first result, reusing existing tab if possible."""
+    """Open YouTube and auto-play first result."""
     import webbrowser
     import time
     
@@ -103,36 +103,25 @@ def _play_on_youtube(query: str):
         import pyautogui
         pyautogui.FAILSAFE = False
         
-        logger.info(f"Loading YouTube search for: {query}")
+        # Try to close current tab first (if YouTube is already open)
+        # This prevents tab accumulation
+        try:
+            # Ctrl+W closes current tab
+            pyautogui.hotkey('ctrl', 'w')
+            time.sleep(0.3)
+            logger.info("Closed previous YouTube tab")
+        except:
+            pass  # No tab to close, that's fine
         
-        # Strategy: Focus address bar and navigate (reuses current tab)
-        # This works if browser is already open and focused
-        
-        # Focus address bar (Ctrl+L works in Chrome, Firefox, Edge)
-        pyautogui.hotkey('ctrl', 'l')
-        time.sleep(0.3)
-        
-        # Clear any existing text
-        pyautogui.hotkey('ctrl', 'a')
-        time.sleep(0.1)
-        
-        # Type the new YouTube search URL
-        pyautogui.write(search_url, interval=0.01)
-        time.sleep(0.2)
-        
-        # Press Enter to navigate
-        pyautogui.press('enter')
-        logger.info(f"Navigating to: {query}")
-        
-        # Wait for page to load
-        time.sleep(6)
-        
-    except Exception as e:
-        # Fallback: Open in new tab if the above fails
-        logger.warning(f"Could not reuse tab, opening new one: {e}")
-        webbrowser.open(search_url)
-        logger.info(f"Opening YouTube search for: {query}")
-        time.sleep(6)
+    except ImportError:
+        pass  # pyautogui not available
+    
+    # Open the URL
+    webbrowser.open(search_url)
+    logger.info(f"Opening YouTube search for: {query}")
+    
+    # Wait for page to load
+    time.sleep(6)
     
     try:
         import pyautogui

@@ -1,11 +1,11 @@
 """
-Test YouTube tab reuse
+Test YouTube with tab management
 """
 
 from jarvis.skills.music_player import MusicPlayerSkill
 import time
 
-print("🎵 Testing YouTube Tab Reuse\n")
+print("🎵 Testing YouTube with Tab Management\n")
 
 music = MusicPlayerSkill()
 
@@ -13,21 +13,21 @@ music = MusicPlayerSkill()
 print("1️⃣  Playing first song: Despacito")
 result = music.execute(action="play", query="Despacito")
 if result.success:
-    print(f"   ✅ Playing: {result.result['playing']}\n")
+    print(f"   ✅ {result.result}\n")
 else:
     print(f"   ❌ Error: {result.error_message}\n")
 
-# Wait for video to start
-print("⏳ Waiting 10 seconds for video to start...\n")
-time.sleep(10)
+print("⏳ Waiting 15 seconds for video to load and start...\n")
+time.sleep(15)
 
-# Play second song (should reuse same tab)
+# Play second song (should close first tab and open new one)
 print("2️⃣  Playing second song: Shape of You")
 result = music.execute(action="play", query="Shape of You")
 if result.success:
-    print(f"   ✅ Playing: {result.result['playing']}\n")
+    print(f"   ✅ {result.result}\n")
 else:
     print(f"   ❌ Error: {result.error_message}\n")
 
 print("✅ Test complete!")
-print("   Check your browser - should only have ONE YouTube tab!\n")
+print("   Check your browser - should have closed first tab and opened new one!\n")
+print("   Net result: Only ONE YouTube tab!\n")

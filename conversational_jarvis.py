@@ -13,6 +13,7 @@ import os
 import subprocess
 import speech_recognition as sr
 import pyttsx3
+import time
 from dotenv import load_dotenv
 from datetime import datetime
 import json
@@ -263,6 +264,13 @@ Personality:
 - Proactive and helpful
 - Remember context from the conversation
 
+IMPORTANT RULES:
+- NEVER claim to have sent emails, opened applications, or performed actions
+- NEVER say you've done something you haven't actually done
+- If asked about emails, say "I can help you send emails if you ask me to"
+- If asked about opening things, say "I can help you open applications if you ask me to"
+- Only respond conversationally - don't pretend to take actions
+
 Capabilities you can mention:
 - Diagnose and optimize the computer
 - Play music and open applications
@@ -350,21 +358,39 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
                             self.speak(f"Volume set to {level}%")
                         return
         
-        # Music/Songs
-        if any(word in user_input for word in ["play", "music", "song", "spotify"]):
-            if "play" in user_input:
+        # Music/Songs - Enhanced detection
+        if any(word in user_input for word in ["play", "music", "song", "spotify"]) or "another song" in user_input:
+            if "play" in user_input or "another song" in user_input:
                 # Extract song name
-                words = user_input.split()
-                if "play" in words:
-                    play_idx = words.index("play")
-                    if play_idx + 1 < len(words):
-                        song_query = " ".join(words[play_idx + 1:])
-                        # Remove common words
-                        song_query = song_query.replace("some", "").replace("a", "").strip()
-                        if song_query:
-                            result = self.play_music(song_query)
-                            self.speak(result)
-                            return
+                song_query = ""
+                if "play" in user_input:
+                    words = user_input.split()
+                    if "play" in words:
+                        play_idx = words.index("play")
+                        if play_idx + 1 < len(words):
+                            song_query = " ".join(words[play_idx + 1:])
+                elif "another song" in user_input:
+                    # For "another song", ask what song they want
+                    self.speak("What song would you like me to play?")
+                    return
+                
+                # Clean up song query
+                song_query = song_query.replace("some", "").replace("a", "").replace("another", "").strip()
+                
+                if song_query:
+                    # Close current YouTube tab first to avoid multiple tabs
+                    try:
+                        import pyautogui
+                        pyautogui.FAILSAFE = False
+                        # Try to close current tab
+                        pyautogui.hotkey('ctrl', 'w')
+                        time.sleep(0.5)
+                    except:
+                        pass
+                    
+                    result = self.play_music(song_query)
+                    self.speak(result)
+                    return
             
             result = self.play_music()
             self.speak(result)
@@ -584,16 +610,19 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
                 self.speak(f"I couldn't create the document: {result.error_message}")
             return
         
-        # Email notification commands
-        if any(word in user_input for word in ["send me email", "email me", "notify me", "text me"]):
+        # Email notification commands - Enhanced detection
+        if any(phrase in user_input for phrase in ["send me email", "email me", "notify me", "text me", "send email", "send it now", "email it", "in my email"]):
             user_email = os.getenv("NOTIFICATION_EMAIL", "")
             if not user_email:
                 self.speak("I don't have your email address configured. Please set NOTIFICATION_EMAIL in your .env file.")
                 return
             
             # Extract the message content
-            message = user_input.replace("send me email", "").replace("email me", "").replace("notify me", "").replace("text me", "").strip()
-            if not message:
+            message = user_input
+            for phrase in ["send me email", "email me", "notify me", "text me", "send email", "send it now", "email it"]:
+                message = message.replace(phrase, "").strip()
+            
+            if not message or len(message) < 3:
                 message = "Hello! This is a test notification from JARVIS."
             
             self.speak(f"Sending email to {user_email}...")

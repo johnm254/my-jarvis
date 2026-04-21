@@ -1,0 +1,62 @@
+[tool.poetry]
+name = "jarvis"
+version = "0.1.0"
+description = "JARVIS Personal AI Assistant - Full-stack intelligent assistant with voice interaction, persistent memory, and extensible skills"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "jarvis"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+anthropic = "^0.39.0"
+supabase = "^2.9.1"
+openai-whisper = "^20231117"
+elevenlabs = "^1.9.0"
+pvporcupine = "^3.0.3"
+psutil = "^6.1.0"
+apscheduler = "^3.10.4"
+python-dotenv = "^1.0.1"
+pydantic = "^2.10.3"
+pydantic-settings = "^2.6.1"
+pyyaml = "^6.0.2"
+requests = "^2.32.3"
+flask = "^3.1.0"
+flask-cors = "^5.0.0"
+pyjwt = "^2.10.1"
+flask-socketio = "^5.4.1"
+python-socketio = "^5.12.0"
+sounddevice = "^0.5.1"
+numpy = "^2.2.1"
+docker = "^7.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+pytest-asyncio = "^0.24.0"
+hypothesis = "^6.122.3"
+black = "^24.10.0"
+flake8 = "^7.1.1"
+mypy = "^1.13.0"
+types-requests = "^2.32.0.20241016"
+types-pyyaml = "^6.0.12.20240917"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=jarvis --cov-report=html --cov-report=term"

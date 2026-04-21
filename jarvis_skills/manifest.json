@@ -1,0 +1,366 @@
+{
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "email_intake",
+      "version": "1.0.0",
+      "description": "Extract structured requirements from project emails using LLM",
+      "category": "communication",
+      "author": "JARVIS",
+      "tags": [
+        "email",
+        "requirements",
+        "parsing",
+        "automation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "project_architect",
+      "version": "1.0.0",
+      "description": "Generate project architecture, ERD, API specs, and implementation plan",
+      "category": "development",
+      "author": "JARVIS",
+      "tags": [
+        "architecture",
+        "design",
+        "planning",
+        "diagrams"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "code_generator",
+      "version": "1.0.0",
+      "description": "Agentic code generation with iterative testing, linting, and auto-fixing",
+      "category": "development",
+      "author": "JARVIS",
+      "tags": [
+        "codegen",
+        "testing",
+        "linting",
+        "automation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "github_automation",
+      "version": "1.0.0",
+      "description": "Automate GitHub operations: repos, branches, PRs, version control",
+      "category": "development",
+      "author": "JARVIS",
+      "tags": [
+        "github",
+        "git",
+        "version-control",
+        "automation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "ide_control",
+      "version": "1.0.0",
+      "description": "Control local development environment: VS Code, package managers, dev servers",
+      "category": "development",
+      "author": "JARVIS",
+      "tags": [
+        "ide",
+        "vscode",
+        "environment",
+        "automation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "project_completion",
+      "version": "1.0.0",
+      "description": "Send project completion notifications with summary and links",
+      "category": "communication",
+      "author": "JARVIS",
+      "tags": [
+        "notification",
+        "email",
+        "completion",
+        "reporting"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "dev_tools",
+      "version": "1.0.0",
+      "description": "Full-stack developer automation: git, npm, docker, boilerplate generation",
+      "category": "development",
+      "author": "JARVIS",
+      "tags": [
+        "git",
+        "npm",
+        "docker",
+        "cli",
+        "automation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "manage_email",
+      "version": "1.0.0",
+      "description": "Manage Gmail: read, summarize, draft messages",
+      "category": "communication",
+      "author": "JARVIS",
+      "tags": [
+        "email",
+        "gmail",
+        "communication"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "manage_calendar",
+      "version": "1.0.0",
+      "description": "Manage Google Calendar: events, scheduling",
+      "category": "productivity",
+      "author": "JARVIS",
+      "tags": [
+        "calendar",
+        "scheduling",
+        "events"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "set_reminder",
+      "version": "1.0.0",
+      "description": "Set and manage reminders",
+      "category": "productivity",
+      "author": "JARVIS",
+      "tags": [
+        "reminders",
+        "tasks",
+        "notifications"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "daily_brief",
+      "version": "1.0.0",
+      "description": "Generate daily briefing from email, calendar, and news",
+      "category": "productivity",
+      "author": "JARVIS",
+      "tags": [
+        "briefing",
+        "summary",
+        "daily"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "web_search",
+      "version": "1.0.0",
+      "description": "Search the web using Brave Search API",
+      "category": "research",
+      "author": "JARVIS",
+      "tags": [
+        "search",
+        "web",
+        "research"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "github_summary",
+      "version": "1.0.0",
+      "description": "Summarize GitHub activity and repositories",
+      "category": "research",
+      "author": "JARVIS",
+      "tags": [
+        "github",
+        "summary",
+        "activity"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "system_status",
+      "version": "1.0.0",
+      "description": "Monitor system resources: CPU, memory, disk, network",
+      "category": "system",
+      "author": "JARVIS",
+      "tags": [
+        "monitoring",
+        "system",
+        "resources"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "run_code",
+      "version": "1.0.0",
+      "description": "Execute code in sandboxed environment",
+      "category": "system",
+      "author": "JARVIS",
+      "tags": [
+        "code",
+        "execution",
+        "sandbox"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "get_weather",
+      "version": "1.0.0",
+      "description": "Get weather information for any location",
+      "category": "personal",
+      "author": "JARVIS",
+      "tags": [
+        "weather",
+        "forecast",
+        "location"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "smart_home",
+      "version": "1.0.0",
+      "description": "Control smart home devices via Home Assistant",
+      "category": "personal",
+      "author": "JARVIS",
+      "tags": [
+        "smart-home",
+        "automation",
+        "iot"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "computer_diagnostics",
+      "version": "1.0.0",
+      "description": "Comprehensive computer diagnostics: hardware, software, network, security",
+      "category": "system",
+      "author": "JARVIS",
+      "tags": [
+        "diagnostics",
+        "hardware",
+        "monitoring",
+        "health"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "system_optimizer",
+      "version": "1.0.0",
+      "description": "Optimize computer: clean temp files, clear cache, free disk space",
+      "category": "system",
+      "author": "JARVIS",
+      "tags": [
+        "optimization",
+        "cleanup",
+        "performance",
+        "disk"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "system_tools",
+      "version": "1.0.0",
+      "description": "System operations: file management, shell commands",
+      "category": "system",
+      "author": "JARVIS",
+      "tags": [
+        "files",
+        "shell",
+        "system"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "email_notifier",
+      "version": "1.0.0",
+      "description": "Send email notifications and reports",
+      "category": "communication",
+      "author": "JARVIS",
+      "tags": [
+        "email",
+        "notification",
+        "smtp"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "project_planner",
+      "version": "1.0.0",
+      "description": "Plan and organize projects",
+      "category": "productivity",
+      "author": "JARVIS",
+      "tags": [
+        "planning",
+        "projects",
+        "organization"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "file_writer",
+      "version": "1.0.0",
+      "description": "Create and write files",
+      "category": "productivity",
+      "author": "JARVIS",
+      "tags": [
+        "files",
+        "writing",
+        "creation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "music_player",
+      "version": "1.0.0",
+      "description": "Control music playback",
+      "category": "personal",
+      "author": "JARVIS",
+      "tags": [
+        "music",
+        "audio",
+        "playback"
+      ],
+      "requires": null,
+      "source": "builtin"
+    },
+    {
+      "name": "website_builder",
+      "version": "1.0.0",
+      "description": "Generate websites and web pages",
+      "category": "creative",
+      "author": "JARVIS",
+      "tags": [
+        "website",
+        "web",
+        "html",
+        "generation"
+      ],
+      "requires": null,
+      "source": "builtin"
+    }
+  ]
+}

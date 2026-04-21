@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    };
+  </script>
+  <style>
+    body { background-color: #0f172a; color: #e2e8f0; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+  </style>
+</head>
+<body class="dark">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+const { BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation } = ReactRouterDOM;
+
+const API_BASE = 'http://localhost:5000';
+
+// ─── Auth helpers ────────────────────────────────────────────────────────────
+const getToken = () => localStorage.getItem('jarvis_token');
+const setToken = (t) => localStorage.setItem('jarvis_token', t);
+const removeToken = () => localStorage.removeItem('jarvis_token');
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${getToken()}`,
+});
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: authHeaders(),
+    ...opts,
+  });
+  if (res.status === 401) {
+    removeToken();
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+  return res;
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  const colors = type === 'error'
+    ? 'bg-red-600 text-white'
+    : 'bg-emerald-600 text-white';
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-lg shadow-xl text-sm font-medium ${colors} flex items-center gap-3`}>
+      <span>{message}</span>
+      <button onClick={onClose} className="opacity-70 hover:opacity-100">✕</button>
+    </div>
+  );
+}
+
+function useToast() {
+  const [toast, setToast] = useState(null);
+  const show = useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const hide = useCallback(() => setToast(null), []);
+  const el = toast ? <Toast message={toast.message} type={toast.type} onClose={hide} /> : null;
+  return { show, el };
+}
+
+// ─── Protected Route ─────────────────────────────────────────────────────────
+function ProtectedRoute({ children }) {
+  return getToken() ? children : <Navigate to="/login" replace />;
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+const navItems = [
+  { to: '/',         label: 'Dashboard',    icon: '⚡' },
+  { to: '/conversation', label: 'Conversation', icon: '💬' },
+  { to: '/memory',   label: 'Memory',       icon: '🧠' },
+  { to: '/skills',   label: 'Skills',       icon: '🔧' },
+  { to: '/settings', label: 'Settings',     icon: '⚙️' },
+];
+
+function Sidebar({ onLogout }) {
+  return (
+    <aside className="w-56 min-h-screen bg-slate-900 border-r border-slate-700 flex flex-col">
+      <div className="px-5 py-5 border-b border-slate-700">
+        <span className="text-xl font-bold text-cyan-400 tracking-wide">JARVIS</span>
+        <p className="text-xs text-slate-500 mt-0.5">Personal AI Assistant</p>
+      </div>
+      <nav className="flex-1 py-4 space-y-1 px-2">
+        {navItems.map(({ to, label, icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? 'bg-cyan-900/50 text-cyan-300 font-medium'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`
+            }
+          >
+            <span>{icon}</span>
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <div className="px-4 py-4 border-t border-slate-700">
+        <button
+          onClick={onLogout}
+          className="w-full text-left text-sm text-slate-500 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-slate-800"
+        >
+          🚪 Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
+function Layout({ children }) {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    removeToken();
+    navigate('/login');
+  };
+  return (
+    <div className="flex min-h-screen bg-slate-950">
+      <Sidebar onLogout={handleLogout} />
+      <main className="flex-1 overflow-auto p-6">{children}</main>
+    </div>
+  );
+}
+
+// ─── Login Page ───────────────────────────────────────────────────────────────
+function LoginPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (getToken()) navigate('/', { replace: true });
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+      } else {
+        setToken(data.token);
+        navigate('/', { replace: true });
+      }
+    } catch {
+      setError('Cannot reach server. Is the backend running?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 p-8 shadow-2xl">
+        <div className="text-center mb-8">
+          <div className="text-4xl mb-2">⚡</div>
+          <h1 className="text-2xl font-bold text-cyan-400">JARVIS</h1>
+          <p className="text-slate-500 text-sm mt-1">Sign in to your dashboard</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+              placeholder="admin"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          {error && (
+            <div className="bg-red-900/30 border border-red-700 text-red-400 text-sm px-3 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
+          >
+            {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Daily Brief Card ─────────────────────────────────────────────────────────
+function DailyBriefCard({ toast }) {
+  const [brief, setBrief] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchBrief = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/conversation/send', {
+        method: 'POST',
+        body: JSON.stringify({ message: 'Give me my daily brief', session_id: 'daily_brief' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBrief({ text: data.response, timestamp: data.timestamp });
+      }
+    } catch (err) {
+      toast.show('Failed to fetch daily brief', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchBrief();
+    const interval = setInterval(fetchBrief, 3600 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchBrief]);
+
+  return (
+    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-slate-200 flex items-center gap-2">
+          <span>🌅</span> Daily Brief
+        </h2>
+        <button
+          onClick={fetchBrief}
+          disabled={loading}
+          className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Loading…' : '↻ Refresh'}
+        </button>
+      </div>
+      {loading && !brief && (
+        <div className="text-slate-500 text-sm animate-pulse">Fetching your brief…</div>
+      )}
+      {brief && (
+        <div>
+          <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{brief.text}</p>
+          <p className="text-slate-600 text-xs mt-3">
+            Last updated: {new Date(brief.timestamp).toLocaleTimeString()}
+          </p>
+        </div>
+      )}
+      {!brief && !loading && (
+        <p className="text-slate-500 text-sm">Click Refresh to load your daily brief.</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Dashboard (Home) Page ────────────────────────────────────────────────────
+function DashboardPage() {
+  const toast = useToast();
+  const [stats, setStats] = useState({ conversations: 0, memories: 0, skills: 0 });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [histRes, skillsRes] = await Promise.all([
+          apiFetch('/api/conversation/history'),
+          apiFetch('/api/skills/status'),
+        ]);
+        const hist = await histRes.json();
+        const skills = await skillsRes.json();
+        setStats({
+          conversations: hist.count || 0,
+          skills: skills.count || 0,
+        });
+      } catch {}
+    })();
+  }, []);
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      {toast.el}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
+        <p className="text-slate-500 text-sm mt-1">Welcome back, Boss.</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Conversations', value: stats.conversations, icon: '💬' },
+          { label: 'Skills Active', value: stats.skills, icon: '🔧' },
+          { label: 'Status', value: 'Online', icon: '✅' },
+        ].map(({ label, value, icon }) => (
+          <div key={label} className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+            <div className="text-2xl mb-1">{icon}</div>
+            <div className="text-2xl font-bold text-slate-100">{value}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <DailyBriefCard toast={toast} />
+    </div>
+  );
+}
+
+// ─── Conversation Page ────────────────────────────────────────────────────────
+function ConversationPage() {
+  const toast = useToast();
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const bottomRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // Load history
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch('/api/conversation/history?limit=50');
+        const data = await res.json();
+        if (res.ok && data.exchanges) {
+          const msgs = [];
+          data.exchanges.forEach((ex) => {
+            msgs.push({ role: 'user', text: ex.user_input, ts: ex.timestamp });
+            msgs.push({
+              role: 'jarvis',
+              text: ex.brain_response,
+              ts: ex.timestamp,
+              confidence: ex.confidence_score,
+              tool_calls: ex.tool_calls,
+            });
+          });
+          setMessages(msgs);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // WebSocket
+  useEffect(() => {
+    const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('conversation_update', (data) => {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', text: data.user_input, ts: data.timestamp },
+        {
+          role: 'jarvis',
+          text: data.brain_response,
+          ts: data.timestamp,
+          confidence: data.confidence_score,
+          tool_calls: data.tool_calls,
+        },
+      ]);
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || sending) return;
+    const text = input.trim();
+    setInput('');
+    setSending(true);
+    // Optimistic user message
+    setMessages((prev) => [...prev, { role: 'user', text, ts: new Date().toISOString() }]);
+    try {
+      const res = await apiFetch('/api/conversation/send', {
+        method: 'POST',
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.show(data.error || 'Failed to send', 'error');
+      } else {
+        // WebSocket will push the update; if not connected, add manually
+        if (!connected) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'jarvis',
+              text: data.response,
+              ts: data.timestamp,
+              confidence: data.confidence_score,
+              tool_calls: data.tool_calls,
+            },
+          ]);
+        }
+      }
+    } catch {
+      toast.show('Network error', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-3rem)] max-w-3xl">
+      {toast.el}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-slate-100">Conversation</h1>
+        <span className={`text-xs px-2 py-1 rounded-full ${connected ? 'bg-emerald-900/50 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+          {connected ? '● Live' : '○ Offline'}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+        {messages.length === 0 && (
+          <div className="text-center text-slate-600 text-sm mt-16">
+            No messages yet. Say hello to JARVIS!
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+              {msg.role === 'jarvis' && (
+                <span className="text-xs text-cyan-500 font-medium px-1">JARVIS</span>
+              )}
+              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                msg.role === 'user'
+                  ? 'bg-cyan-700 text-white rounded-br-sm'
+                  : 'bg-slate-800 text-slate-200 rounded-bl-sm border border-slate-700'
+              }`}>
+                {msg.text}
+              </div>
+              <div className="flex items-center gap-2 px-1">
+                {msg.confidence !== undefined && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                    msg.confidence >= 80 ? 'bg-emerald-900/50 text-emerald-400' :
+                    msg.confidence >= 60 ? 'bg-yellow-900/50 text-yellow-400' :
+                    'bg-red-900/50 text-red-400'
+                  }`}>
+                    {msg.confidence}% confidence
+                  </span>
+                )}
+                {msg.tool_calls && msg.tool_calls.length > 0 && (
+                  <span className="text-xs text-slate-500">
+                    🔧 {msg.tool_calls.map(t => t.name || t).join(', ')}
+                  </span>
+                )}
+                <span className="text-xs text-slate-600">
+                  {msg.ts ? new Date(msg.ts).toLocaleTimeString() : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <form onSubmit={sendMessage} className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message JARVIS…"
+          className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+          disabled={sending}
+        />
+        <button
+          type="submit"
+          disabled={sending || !input.trim()}
+          className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+        >
+          {sending ? '…' : 'Send'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ─── Memory Browser Page ──────────────────────────────────────────────────────
+function MemoryPage() {
+  const toast = useToast();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 5;
+
+  const search = useCallback(async (q, p = 1) => {
+    if (!q.trim()) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch(
+        `/api/memory/search?query=${encodeURIComponent(q)}&limit=${PAGE_SIZE}`
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setResults(data.results || []);
+        setTotal(data.count || 0);
+        setPage(p);
+      } else {
+        toast.show(data.error || 'Search failed', 'error');
+      }
+    } catch {
+      toast.show('Network error', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    search(query, 1);
+  };
+
+  const deleteMemory = async (id) => {
+    if (!confirm('Delete this memory?')) return;
+    try {
+      const res = await apiFetch('/api/memory/delete', {
+        method: 'DELETE',
+        body: JSON.stringify({ conversation_id: id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.show('Memory deleted');
+        setResults((prev) => prev.filter((r) => r.id !== id));
+        setTotal((t) => t - 1);
+      } else {
+        toast.show(data.error || 'Delete failed', 'error');
+      }
+    } catch {
+      toast.show('Network error', 'error');
+    }
+  };
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      {toast.el}
+      <h1 className="text-xl font-bold text-slate-100">Memory Browser</h1>
+
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search memories…"
+          className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={loading || !query.trim()}
+          className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors"
+        >
+          {loading ? '…' : 'Search'}
+        </button>
+      </form>
+
+      {results.length === 0 && !loading && query && (
+        <p className="text-slate-500 text-sm">No results found.</p>
+      )}
+
+      <div className="space-y-3">
+        {results.map((r) => (
+          <div key={r.id} className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 mb-1">
+                  {r.timestamp ? new Date(r.timestamp).toLocaleString() : 'Unknown time'}
+                  {r.similarity !== undefined && (
+                    <span className="ml-2 text-cyan-600">
+                      {Math.round(r.similarity * 100)}% match
+                    </span>
+                  )}
+                </p>
+                <p className="text-sm text-slate-300 font-medium truncate">
+                  <span className="text-slate-500">You: </span>{r.user_input}
+                </p>
+                <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+                  <span className="text-cyan-600">JARVIS: </span>{r.brain_response}
+                </p>
+              </div>
+              <button
+                onClick={() => deleteMemory(r.id)}
+                className="text-slate-600 hover:text-red-400 transition-colors text-lg flex-shrink-0"
+                title="Delete"
+              >
+                🗑
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {total > PAGE_SIZE && (
+        <div className="flex items-center gap-3 text-sm text-slate-500">
+          <button
+            onClick={() => search(query, page - 1)}
+            disabled={page <= 1}
+            className="px-3 py-1.5 bg-slate-800 rounded-lg disabled:opacity-40 hover:bg-slate-700 transition-colors"
+          >
+            ← Prev
+          </button>
+          <span>Page {page}</span>
+          <button
+            onClick={() => search(query, page + 1)}
+            disabled={page * PAGE_SIZE >= total}
+            className="px-3 py-1.5 bg-slate-800 rounded-lg disabled:opacity-40 hover:bg-slate-700 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Skills Status Page ───────────────────────────────────────────────────────
+function SkillsPage() {
+  const toast = useToast();
+  const [skills, setSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch('/api/skills/status');
+        const data = await res.json();
+        if (res.ok) {
+          setSkills(data.skills || []);
+        } else {
+          toast.show(data.error || 'Failed to load skills', 'error');
+        }
+      } catch {
+        toast.show('Network error', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // API key env var names per skill (heuristic)
+  const apiKeyMap = {
+    web_search: 'BRAVE_API_KEY / SERPER_API_KEY',
+    get_weather: 'WEATHER_API_KEY',
+    github_summary: 'GITHUB_TOKEN',
+    manage_calendar: 'GOOGLE_CALENDAR_CREDENTIALS',
+    manage_email: 'GMAIL_CREDENTIALS',
+    smart_home: 'HOME_ASSISTANT_TOKEN',
+  };
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      {toast.el}
+      <h1 className="text-xl font-bold text-slate-100">Skills Status</h1>
+
+      {loading && (
+        <div className="text-slate-500 text-sm animate-pulse">Loading skills…</div>
+      )}
+
+      {!loading && skills.length === 0 && (
+        <p className="text-slate-500 text-sm">No skills registered.</p>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {skills.map((skill) => (
+          <div key={skill.name} className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-slate-200 text-sm">{skill.name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                skill.status === 'connected'
+                  ? 'bg-emerald-900/50 text-emerald-400'
+                  : 'bg-red-900/50 text-red-400'
+              }`}>
+                {skill.status === 'connected' ? '● Available' : '● Unavailable'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">{skill.description}</p>
+            {apiKeyMap[skill.name] && (
+              <p className="text-xs text-slate-600">
+                🔑 <span className="font-mono">{apiKeyMap[skill.name]}</span>
+              </p>
+            )}
+            {skill.last_execution && (
+              <p className="text-xs text-slate-600">
+                Last run: {new Date(skill.last_execution).toLocaleString()}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Page ────────────────────────────────────────────────────────────
+function SettingsPage() {
+  const toast = useToast();
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch('/api/settings');
+        const data = await res.json();
+        if (res.ok) {
+          setSettings(data);
+          setForm({
+            voice_enabled: data.voice_enabled ?? false,
+            stt_model: data.stt_model || 'base',
+            llm_model: data.llm_model || '',
+            timezone: data.timezone || 'UTC',
+            first_name: data.first_name || '',
+            communication_style: data.communication_style || 'balanced',
+          });
+        } else {
+          toast.show(data.error || 'Failed to load settings', 'error');
+        }
+      } catch {
+        toast.show('Network error', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleChange = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await apiFetch('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.show('Settings saved successfully');
+      } else {
+        toast.show(data.error || 'Failed to save settings', 'error');
+      }
+    } catch {
+      toast.show('Network error', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-xl">
+        <h1 className="text-xl font-bold text-slate-100 mb-4">Settings</h1>
+        <div className="text-slate-500 text-sm animate-pulse">Loading settings…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl space-y-5">
+      {toast.el}
+      <h1 className="text-xl font-bold text-slate-100">Settings</h1>
+
+      <form onSubmit={handleSave} className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-5">
+
+        {/* Voice */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-300 mb-3 pb-2 border-b border-slate-700">Voice</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm text-slate-300">Voice Enabled</label>
+              <p className="text-xs text-slate-500 mt-0.5">Enable wake word detection and TTS</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleChange('voice_enabled', !form.voice_enabled)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                form.voice_enabled ? 'bg-cyan-600' : 'bg-slate-700'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                form.voice_enabled ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+        </div>
+
+        {/* STT Model */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1.5">STT Model</label>
+          <select
+            value={form.stt_model}
+            onChange={(e) => handleChange('stt_model', e.target.value)}
+            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+          >
+            <option value="tiny">Whisper Tiny (fastest)</option>
+            <option value="base">Whisper Base</option>
+            <option value="small">Whisper Small</option>
+            <option value="medium">Whisper Medium</option>
+            <option value="large">Whisper Large (most accurate)</option>
+          </select>
+        </div>
+
+        {/* LLM Model */}
+        <div>
+          <label className="block text-sm text-slate-300 mb-1.5">LLM Model</label>
+          <input
+            type="text"
+            value={form.llm_model}
+            onChange={(e) => handleChange('llm_model', e.target.value)}
+            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+            placeholder="claude-sonnet-4-20250514"
+          />
+        </div>
+
+        {/* Profile */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-300 mb-3 pb-2 border-b border-slate-700">Profile</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-slate-300 mb-1.5">First Name</label>
+              <input
+                type="text"
+                value={form.first_name}
+                onChange={(e) => handleChange('first_name', e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+                placeholder="Boss"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-300 mb-1.5">Timezone</label>
+              <input
+                type="text"
+                value={form.timezone}
+                onChange={(e) => handleChange('timezone', e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+                placeholder="America/New_York"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-300 mb-1.5">Communication Style</label>
+              <select
+                value={form.communication_style}
+                onChange={(e) => handleChange('communication_style', e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+              >
+                <option value="technical">Technical & Direct</option>
+                <option value="balanced">Balanced</option>
+                <option value="casual">Casual & Friendly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
+        >
+          {saving ? 'Saving…' : 'Save Settings'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────────────────
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <DashboardPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/conversation"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ConversationPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/memory"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <MemoryPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/skills"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SkillsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SettingsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

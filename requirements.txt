@@ -1,0 +1,44 @@
+# Core Dependencies
+python-dotenv==1.0.0
+requests==2.31.0
+
+# LLM Integration
+groq==1.2.0
+anthropic==0.39.0
+
+# Voice Control (Optional)
+SpeechRecognition==3.16.0
+pyttsx3==2.99
+
+# System Automation
+pyautogui==0.9.54
+psutil==5.9.8
+
+# Memory & Database
+supabase==2.10.0
+
+# Web Framework (for dashboard)
+fastapi==0.115.0
+uvicorn==0.32.0
+pydantic==2.10.0
+
+# Email Integration
+google-auth==2.36.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+google-api-python-client==2.154.0
+
+# GitHub Integration
+PyGithub==2.5.0
+
+# Utilities
+colorama==0.4.6
+rich==13.9.4
+click==8.1.7
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# Optional: PyAudio for voice mode (requires C++ Build Tools on Windows)
+# pyaudio==0.2.14

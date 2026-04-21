@@ -1,0 +1,151 @@
+services:
+  # Supabase PostgreSQL with pgvector
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: jarvis-supabase-db
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
+      POSTGRES_DB: jarvis
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./migrations:/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jarvis-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # JARVIS Brain Service (Main reasoning engine)
+  brain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-brain
+    env_file:
+      - .env
+    environment:
+      - SUPABASE_URL=http://supabase-db:5432
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    volumes:
+      - ./jarvis:/app/jarvis
+      - ./logs:/app/logs
+      - ./models:/app/models
+    ports:
+      - "${BRAIN_PORT:-8000}:8000"
+    networks:
+      - jarvis-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # JARVIS Voice Interface Service
+  voice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-voice
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - brain
+    volumes:
+      - ./jarvis:/app/jarvis
+      - ./logs:/app/logs
+      - ./models:/app/models
+    devices:
+      - /dev/snd:/dev/snd  # Audio device access
+    privileged: true
+    networks:
+      - jarvis-network
+    restart: unless-stopped
+    command: python -m jarvis.voice
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # JARVIS Dashboard Backend API
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-dashboard-api
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - brain
+    volumes:
+      - ./jarvis:/app/jarvis
+      - ./logs:/app/logs
+    ports:
+      - "${API_PORT:-5000}:5000"
+    networks:
+      - jarvis-network
+    restart: unless-stopped
+    command: python -m jarvis.dashboard
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # JARVIS Dashboard Frontend
+  dashboard-frontend:
+    image: nginx:alpine
+    container_name: jarvis-dashboard-frontend
+    volumes:
+      - ./jarvis/dashboard/static:/usr/share/nginx/html:ro
+    environment:
+      - REACT_APP_API_URL=http://localhost:${API_PORT:-5000}
+    ports:
+      - "${DASHBOARD_PORT:-3000}:80"
+    depends_on:
+      - dashboard-api
+    networks:
+      - jarvis-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  supabase-db-data:
+    driver: local
+
+networks:
+  jarvis-network:
+    driver: bridge

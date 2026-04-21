@@ -93,44 +93,19 @@ def _mute_toggle(mute: bool) -> bool:
 
 
 def _play_on_youtube(query: str):
-    """Open YouTube and auto-play first result."""
+    """Open YouTube and auto-play first result with enhanced reliability."""
     import webbrowser
     import time
     
     # Build search URL
     search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
     
-    try:
-        import pyautogui
-        pyautogui.FAILSAFE = False
-        
-        # Try to navigate in current tab using address bar
-        try:
-            # Focus address bar
-            pyautogui.hotkey('ctrl', 'l')
-            time.sleep(0.3)
-            
-            # Type new URL
-            pyautogui.write(search_url, interval=0.01)
-            time.sleep(0.2)
-            
-            # Press Enter
-            pyautogui.press('enter')
-            logger.info(f"Navigating to YouTube search for: {query}")
-            
-        except Exception as e:
-            # If navigation fails, open new tab
-            logger.warning(f"Navigation failed, opening new tab: {e}")
-            webbrowser.open(search_url)
-            logger.info(f"Opening new YouTube tab for: {query}")
-            
-    except ImportError:
-        # If pyautogui not available, use webbrowser
-        webbrowser.open(search_url)
-        logger.info(f"Opening YouTube search for: {query}")
+    # Always open with webbrowser for reliability
+    webbrowser.open(search_url)
+    logger.info(f"Opening YouTube search for: {query}")
     
-    # Wait for page to load
-    time.sleep(6)
+    # Wait longer for page to load
+    time.sleep(10)  # Increased wait time for slow connections
     
     try:
         import pyautogui
@@ -140,45 +115,84 @@ def _play_on_youtube(query: str):
         screen_width, screen_height = pyautogui.size()
         logger.info(f"Screen size: {screen_width}x{screen_height}")
         
-        # Method 1: Try clicking on first video thumbnail
-        # YouTube first video is typically around these positions
+        # Method 1: Enhanced keyboard navigation (most reliable)
+        logger.info("Using enhanced keyboard navigation method")
+        try:
+            # First, make sure we're focused on the page
+            pyautogui.click(screen_width // 2, screen_height // 2)  # Click center of screen
+            time.sleep(1)
+            
+            # Press Tab many times to navigate to first video
+            for i in range(25):  # Increased tab count
+                pyautogui.press('tab')
+                time.sleep(0.08)  # Slightly faster tabbing
+            
+            # Press Enter to play
+            pyautogui.press('enter')
+            logger.info("Used keyboard navigation - pressed Enter to play")
+            time.sleep(3)
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Keyboard navigation failed: {e}")
+        
+        # Method 2: Try clicking on video thumbnails with more positions
+        logger.info("Trying enhanced click method")
         possible_positions = [
-            (int(screen_width * 0.25), int(screen_height * 0.35)),  # Center-left, upper-middle
-            (int(screen_width * 0.20), int(screen_height * 0.30)),  # Left, upper
-            (int(screen_width * 0.30), int(screen_height * 0.40)),  # More center
-            (400, 300),  # Fixed position for 1920x1080
-            (350, 280),  # Alternative position
+            # More positions to try
+            (int(screen_width * 0.25), int(screen_height * 0.35)),
+            (int(screen_width * 0.20), int(screen_height * 0.30)),
+            (int(screen_width * 0.30), int(screen_height * 0.40)),
+            (int(screen_width * 0.15), int(screen_height * 0.35)),
+            (int(screen_width * 0.35), int(screen_height * 0.35)),
+            (400, 300),  # Fixed positions for common resolutions
+            (350, 280),
+            (450, 320),
+            (300, 250),
+            (500, 350),
         ]
         
         for pos_x, pos_y in possible_positions:
             try:
                 logger.info(f"Trying to click at position: ({pos_x}, {pos_y})")
-                pyautogui.moveTo(pos_x, pos_y, duration=0.3)
-                time.sleep(0.2)
+                pyautogui.moveTo(pos_x, pos_y, duration=0.2)
+                time.sleep(0.3)
                 pyautogui.click()
-                time.sleep(2)
+                time.sleep(4)  # Wait longer to see if video starts
                 
-                # Check if video started by looking for video player
-                # If we're still on search results, try next position
                 logger.info(f"Clicked at ({pos_x}, {pos_y})")
-                return True
+                # Don't break here, try all positions for better chance
                 
             except Exception as e:
                 logger.warning(f"Click at ({pos_x}, {pos_y}) failed: {e}")
                 continue
         
-        # Method 2: Use keyboard navigation (more reliable)
-        logger.info("Trying keyboard navigation method")
-        time.sleep(1)
+        # Method 3: Try using search within page
+        logger.info("Trying page search method")
+        try:
+            # Use Ctrl+F to find video elements
+            pyautogui.hotkey('ctrl', 'f')
+            time.sleep(0.5)
+            pyautogui.write('ago', interval=0.01)  # Search for "ago" in timestamps
+            time.sleep(1)
+            pyautogui.press('escape')  # Close search
+            time.sleep(0.5)
+            pyautogui.press('enter')  # Try to activate found element
+            logger.info("Used page search method")
+            
+        except Exception as e:
+            logger.warning(f"Page search method failed: {e}")
         
-        # Press Tab multiple times to reach first video
-        for i in range(15):
-            pyautogui.press('tab')
-            time.sleep(0.15)
-        
-        # Press Enter to play
-        pyautogui.press('enter')
-        logger.info("Pressed Enter to play video")
+        # Method 4: Fallback - try spacebar to play
+        logger.info("Trying spacebar method")
+        try:
+            time.sleep(2)
+            pyautogui.press('space')  # Spacebar often plays/pauses videos
+            logger.info("Pressed spacebar to play")
+            
+        except Exception as e:
+            logger.warning(f"Spacebar method failed: {e}")
         
         return True
         

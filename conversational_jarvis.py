@@ -187,15 +187,12 @@ class ConversationalJARVIS:
         """Play music."""
         if query:
             # Try to play specific song
+            self.speak(f"Opening YouTube to play {query}")
             result = self.music.execute(action="play", query=query)
             if result.success:
-                return f"Playing {query}"
+                return f"Playing {query} on YouTube"
             else:
-                # Open Spotify or default music player
-                if self.open_application("spotify"):
-                    return "Opening Spotify for you"
-                else:
-                    return "I couldn't find a music player. Try installing Spotify."
+                return f"I had trouble playing {query}: {result.error_message}"
         else:
             # Just open music player
             if self.open_application("spotify"):
@@ -599,7 +596,7 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
             if not message:
                 message = "Hello! This is a test notification from JARVIS."
             
-            self.speak("Sending you an email notification.")
+            self.speak(f"Sending email to {user_email}...")
             
             from jarvis.skills.email_notifier import EmailNotifierSkill
             email_skill = EmailNotifierSkill()
@@ -611,7 +608,7 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
             )
             
             if result.success:
-                self.speak("Email sent successfully!")
+                self.speak("Email sent successfully! Check your inbox and spam folder.")
             else:
                 self.speak(f"I couldn't send the email: {result.error_message}")
             return

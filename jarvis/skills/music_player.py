@@ -70,6 +70,7 @@ def _change_volume(delta: float) -> int:
 
 def _mute_toggle(mute: bool) -> bool:
     """Mute or unmute system audio."""
+    # Method 1: Try pycaw first
     vol = _get_volume_control()
     if vol:
         try:
@@ -77,16 +78,16 @@ def _mute_toggle(mute: bool) -> bool:
             logger.info(f"Audio {'muted' if mute else 'unmuted'}")
             return True
         except Exception as e:
-            logger.warning(f"Failed to toggle mute: {e}")
+            logger.warning(f"pycaw mute failed: {e}")
     
-    # Fallback: Use nircmd
+    # Method 2: Use keyboard shortcut (most reliable)
     try:
-        cmd = "mutesysvolume 1" if mute else "mutesysvolume 0"
-        subprocess.run(["nircmd.exe"] + cmd.split(), 
-                      capture_output=True, timeout=2)
+        import pyautogui
+        pyautogui.press('volumemute')
+        logger.info(f"Used keyboard mute toggle")
         return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Keyboard mute failed: {e}")
     
     return False
 
@@ -103,22 +104,30 @@ def _play_on_youtube(query: str):
         import pyautogui
         pyautogui.FAILSAFE = False
         
-        # Try to close current tab first (if YouTube is already open)
-        # This prevents tab accumulation
+        # Try to navigate in current tab using address bar
         try:
-            # Ctrl+W closes current tab
-            pyautogui.hotkey('ctrl', 'w')
+            # Focus address bar
+            pyautogui.hotkey('ctrl', 'l')
             time.sleep(0.3)
-            logger.info("Closed previous YouTube tab")
-        except:
-            pass  # No tab to close, that's fine
-        
+            
+            # Type new URL
+            pyautogui.write(search_url, interval=0.01)
+            time.sleep(0.2)
+            
+            # Press Enter
+            pyautogui.press('enter')
+            logger.info(f"Navigating to YouTube search for: {query}")
+            
+        except Exception as e:
+            # If navigation fails, open new tab
+            logger.warning(f"Navigation failed, opening new tab: {e}")
+            webbrowser.open(search_url)
+            logger.info(f"Opening new YouTube tab for: {query}")
+            
     except ImportError:
-        pass  # pyautogui not available
-    
-    # Open the URL
-    webbrowser.open(search_url)
-    logger.info(f"Opening YouTube search for: {query}")
+        # If pyautogui not available, use webbrowser
+        webbrowser.open(search_url)
+        logger.info(f"Opening YouTube search for: {query}")
     
     # Wait for page to load
     time.sleep(6)

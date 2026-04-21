@@ -28,6 +28,7 @@ from jarvis.skills.email_notifier import EmailNotifierSkill
 from jarvis.skills.music_player import MusicPlayerSkill
 from jarvis.skills.computer_diagnostics import ComputerDiagnosticsSkill
 from jarvis.skills.system_optimizer import SystemOptimizerSkill
+from jarvis.skills.computer_control import ComputerControlSkill
 
 
 def register_all_builtin_skills():
@@ -262,6 +263,15 @@ def register_all_builtin_skills():
             category="personal",
             author="JARVIS",
             tags=["music", "audio", "playback"],
+            source="builtin"
+        )),
+        (ComputerControlSkill(), SkillMetadata(
+            name="computer_control",
+            version="1.0.0",
+            description="Full computer control: keyboard, mouse, navigation, typing, file management",
+            category="system",
+            author="JARVIS",
+            tags=["control", "keyboard", "mouse", "navigation", "automation"],
             source="builtin"
         )),
         

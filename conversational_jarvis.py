@@ -16,6 +16,7 @@ import pyttsx3
 from dotenv import load_dotenv
 from datetime import datetime
 import json
+from pathlib import Path
 
 load_dotenv()
 
@@ -24,6 +25,7 @@ from jarvis.skills.system_optimizer import SystemOptimizerSkill
 from jarvis.skills.music_player import MusicPlayerSkill
 from jarvis.skills.get_weather import GetWeatherSkill
 from jarvis.skills.web_search import WebSearchSkill
+from jarvis.skills.computer_control import ComputerControlSkill
 from jarvis.memory.memory_system import MemorySystem
 
 
@@ -86,6 +88,7 @@ class ConversationalJARVIS:
         self.music = MusicPlayerSkill()
         self.weather = GetWeatherSkill()
         self.search = WebSearchSkill()
+        self.control = ComputerControlSkill()
         
         # User info
         self.user_name = os.getenv("USER_NAME", "Sir")
@@ -442,6 +445,98 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
         if any(word in user_input for word in ["goodbye", "bye", "exit", "quit", "stop"]):
             self.speak(f"Goodbye {self.user_name}! I'll be here if you need me.")
             self.listening = False
+            return
+        
+        # Keyboard and typing commands
+        if "type" in user_input:
+            # Extract text to type
+            if "type" in user_input:
+                parts = user_input.split("type", 1)
+                if len(parts) > 1:
+                    text_to_type = parts[1].strip()
+                    result = self.control.execute(action="type", text=text_to_type)
+                    if result.success:
+                        self.speak(f"Typed: {text_to_type}")
+                    return
+        
+        # Press key commands
+        if "press" in user_input:
+            if "enter" in user_input:
+                self.control.execute(action="press_key", key="enter")
+                self.speak("Pressed Enter")
+                return
+            elif "tab" in user_input:
+                self.control.execute(action="press_key", key="tab")
+                self.speak("Pressed Tab")
+                return
+            elif "escape" in user_input:
+                self.control.execute(action="press_key", key="escape")
+                self.speak("Pressed Escape")
+                return
+        
+        # Navigation commands
+        if "scroll" in user_input:
+            if "down" in user_input:
+                self.control.execute(action="scroll", direction="down", amount=3)
+                self.speak("Scrolling down")
+            elif "up" in user_input:
+                self.control.execute(action="scroll", direction="up", amount=3)
+                self.speak("Scrolling up")
+            return
+        
+        # Window management
+        if "switch window" in user_input or "next window" in user_input:
+            self.control.execute(action="switch_window")
+            self.speak("Switching window")
+            return
+        
+        if "close window" in user_input or "close this" in user_input:
+            self.control.execute(action="close_window")
+            self.speak("Closing window")
+            return
+        
+        if "minimize" in user_input:
+            self.control.execute(action="minimize")
+            self.speak("Minimizing window")
+            return
+        
+        if "maximize" in user_input:
+            self.control.execute(action="maximize")
+            self.speak("Maximizing window")
+            return
+        
+        # File search and navigation
+        if "search for" in user_input or "find file" in user_input:
+            # Extract search query
+            words = user_input.replace("search for", "").replace("find file", "").strip()
+            if words:
+                result = self.control.execute(action="search_file", query=words)
+                if result.success and result.result.get("found", 0) > 0:
+                    files = result.result.get("files", [])
+                    self.speak(f"Found {len(files)} files matching {words}")
+                    # Open first file
+                    if files:
+                        self.control.execute(action="open_file", path=files[0])
+                        self.speak(f"Opening {Path(files[0]).name}")
+                else:
+                    self.speak(f"No files found matching {words}")
+            return
+        
+        # Navigate to locations
+        if "go to" in user_input or "navigate to" in user_input:
+            location = user_input.replace("go to", "").replace("navigate to", "").strip()
+            if location:
+                result = self.control.execute(action="navigate_to", location=location)
+                if result.success:
+                    self.speak(f"Navigating to {location}")
+                else:
+                    self.speak(f"Could not navigate to {location}")
+            return
+        
+        # Click commands
+        if "click" in user_input:
+            self.control.execute(action="click")
+            self.speak("Clicked")
             return
         
         # Natural conversation - use LLM

@@ -93,7 +93,7 @@ def _mute_toggle(mute: bool) -> bool:
 
 
 def _play_on_youtube(query: str):
-    """Open YouTube and auto-play first result using pyautogui."""
+    """Open YouTube and auto-play first result using better navigation."""
     import webbrowser
     import time
     
@@ -102,51 +102,62 @@ def _play_on_youtube(query: str):
     webbrowser.open(search_url)
     
     # Wait for page to load
-    time.sleep(5)
+    logger.info(f"Opening YouTube search for: {query}")
+    time.sleep(6)  # Longer wait for page load
     
     try:
         import pyautogui
         pyautogui.FAILSAFE = False
         
-        # Method 1: Click on first video thumbnail
-        # Move to approximate position of first video (adjust if needed)
+        # Get screen size
         screen_width, screen_height = pyautogui.size()
+        logger.info(f"Screen size: {screen_width}x{screen_height}")
         
-        # First video is usually around 20% from left, 30% from top
-        first_video_x = int(screen_width * 0.20)
-        first_video_y = int(screen_height * 0.30)
+        # Method 1: Try clicking on first video thumbnail
+        # YouTube first video is typically around these positions
+        possible_positions = [
+            (int(screen_width * 0.25), int(screen_height * 0.35)),  # Center-left, upper-middle
+            (int(screen_width * 0.20), int(screen_height * 0.30)),  # Left, upper
+            (int(screen_width * 0.30), int(screen_height * 0.40)),  # More center
+            (400, 300),  # Fixed position for 1920x1080
+            (350, 280),  # Alternative position
+        ]
         
-        # Move mouse to first video position
-        pyautogui.moveTo(first_video_x, first_video_y, duration=0.5)
-        time.sleep(0.3)
+        for pos_x, pos_y in possible_positions:
+            try:
+                logger.info(f"Trying to click at position: ({pos_x}, {pos_y})")
+                pyautogui.moveTo(pos_x, pos_y, duration=0.3)
+                time.sleep(0.2)
+                pyautogui.click()
+                time.sleep(2)
+                
+                # Check if video started by looking for video player
+                # If we're still on search results, try next position
+                logger.info(f"Clicked at ({pos_x}, {pos_y})")
+                return True
+                
+            except Exception as e:
+                logger.warning(f"Click at ({pos_x}, {pos_y}) failed: {e}")
+                continue
         
-        # Click to play
-        pyautogui.click()
+        # Method 2: Use keyboard navigation (more reliable)
+        logger.info("Trying keyboard navigation method")
         time.sleep(1)
         
-        # Press 'f' for fullscreen (optional)
-        # pyautogui.press('f')
+        # Press Tab multiple times to reach first video
+        for i in range(15):
+            pyautogui.press('tab')
+            time.sleep(0.15)
         
-        logger.info(f"Auto-played YouTube video for: {query}")
+        # Press Enter to play
+        pyautogui.press('enter')
+        logger.info("Pressed Enter to play video")
+        
         return True
         
     except Exception as e:
-        logger.warning(f"pyautogui auto-play failed: {e}")
-        
-        # Fallback: Try keyboard navigation
-        try:
-            import pyautogui
-            time.sleep(2)
-            # Tab to first video and press Enter
-            for _ in range(8):
-                pyautogui.press('tab')
-                time.sleep(0.2)
-            pyautogui.press('enter')
-            logger.info(f"Auto-played via keyboard for: {query}")
-            return True
-        except Exception as e2:
-            logger.warning(f"Keyboard fallback failed: {e2}")
-            return False
+        logger.error(f"YouTube auto-play failed: {e}")
+        return False
 
 
 class MusicPlayerSkill(Skill):

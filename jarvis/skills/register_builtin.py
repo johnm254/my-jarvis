@@ -30,6 +30,7 @@ from jarvis.skills.computer_diagnostics import ComputerDiagnosticsSkill
 from jarvis.skills.system_optimizer import SystemOptimizerSkill
 from jarvis.skills.computer_control import ComputerControlSkill
 from jarvis.skills.document_automation import DocumentAutomationSkill
+from jarvis.skills.mcp_integration import MCPIntegrationSkill
 
 
 def register_all_builtin_skills():
@@ -282,6 +283,15 @@ def register_all_builtin_skills():
             category="productivity",
             author="JARVIS",
             tags=["documents", "word", "automation", "email", "formatting"],
+            source="builtin"
+        )),
+        (MCPIntegrationSkill(), SkillMetadata(
+            name="mcp_integration",
+            version="1.0.0",
+            description="Access advanced development tools via MCP servers for full-stack development",
+            category="development",
+            author="JARVIS",
+            tags=["mcp", "fullstack", "ui", "backend", "development", "stitch", "nano-banana"],
             source="builtin"
         )),
         

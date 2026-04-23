@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "stitch-mcp": {
+      "command": "uvx",
+      "args": ["stitch-mcp@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "create_project",
+        "generate_code",
+        "build_fullstack",
+        "create_component"
+      ]
+    },
+    "nano-banana-2": {
+      "command": "uvx", 
+      "args": ["nano-banana-2@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "generate_ui",
+        "create_layout",
+        "build_interface",
+        "design_system"
+      ]
+    },
+    "uiux-promax": {
+      "command": "uvx",
+      "args": ["uiux-promax@latest"], 
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "design_website",
+        "create_mockup",
+        "generate_assets",
+        "build_responsive"
+      ]
+    },
+    "web-builder": {
+      "command": "uvx",
+      "args": ["web-builder-mcp@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "create_website",
+        "build_pages",
+        "generate_html",
+        "create_css"
+      ]
+    },
+    "code-generator": {
+      "command": "uvx",
+      "args": ["code-generator-mcp@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "generate_backend",
+        "create_api",
+        "build_database",
+        "create_frontend"
+      ]
+    }
+  }
+}

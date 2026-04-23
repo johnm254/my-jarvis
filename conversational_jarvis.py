@@ -28,6 +28,7 @@ from jarvis.skills.get_weather import GetWeatherSkill
 from jarvis.skills.web_search import WebSearchSkill
 from jarvis.skills.computer_control import ComputerControlSkill
 from jarvis.skills.document_automation import DocumentAutomationSkill
+from jarvis.skills.mcp_integration import MCPIntegrationSkill
 from jarvis.memory.memory_system import MemorySystem
 
 
@@ -92,6 +93,7 @@ class ConversationalJARVIS:
         self.search = WebSearchSkill()
         self.control = ComputerControlSkill()
         self.documents = DocumentAutomationSkill()
+        self.mcp = MCPIntegrationSkill()
         self.search = WebSearchSkill()
         self.control = ComputerControlSkill()
         
@@ -608,6 +610,108 @@ Current date: {datetime.now().strftime('%A, %B %d, %Y')}
                     self.speak(f"I had trouble creating the document: {error}")
             else:
                 self.speak(f"I couldn't create the document: {result.error_message}")
+            return
+        
+        # MCP Project Building Commands
+        if any(phrase in user_input for phrase in ["build full project", "create full stack", "build website", "create website", "build full stack project", "generate full project", "create complete project"]):
+            self.speak("I'll build a complete project for you using advanced development tools.")
+            
+            # Extract project type and requirements
+            project_type = "fullstack"
+            if "website" in user_input or "landing page" in user_input:
+                project_type = "website"
+            elif "backend" in user_input or "api" in user_input:
+                project_type = "backend"
+            elif "frontend" in user_input or "ui" in user_input:
+                project_type = "frontend"
+            
+            # Extract project name if mentioned
+            project_name = "my-project"
+            words = user_input.split()
+            for i, word in enumerate(words):
+                if word in ["called", "named", "for"] and i + 1 < len(words):
+                    project_name = words[i + 1].replace(",", "").replace(".", "")
+                    break
+            
+            # Use the entire input as requirements
+            requirements = user_input
+            
+            self.speak(f"Creating a {project_type} project called {project_name}. This will include complete code, database setup, and deployment configuration.")
+            
+            if project_type == "website":
+                # Build complete website with UI/UX ProMax and Nano Banana 2
+                result = self.mcp.execute(
+                    action="create_website",
+                    project_name=project_name,
+                    project_type="website",
+                    requirements=requirements,
+                    output_dir=f"./{project_name}"
+                )
+            else:
+                # Build full-stack project with Stitch MCP
+                result = self.mcp.execute(
+                    action="build_fullstack_project",
+                    project_name=project_name,
+                    requirements=requirements,
+                    tech_stack="react,node,mongodb",
+                    output_dir=f"./{project_name}"
+                )
+            
+            if result.success:
+                project_result = result.result
+                if project_result.get("project_created") or project_result.get("website_created"):
+                    files_created = len(project_result.get("files_created", []))
+                    components = len(project_result.get("components_created", project_result.get("components", [])))
+                    
+                    self.speak(f"Project created successfully! I've built a complete {project_type} with {files_created} files and {components} components.")
+                    self.speak(f"The project is ready in the {project_name} folder and should be open in your IDE.")
+                    
+                    # Send email notification if configured
+                    user_email = os.getenv("NOTIFICATION_EMAIL", "")
+                    if user_email:
+                        from jarvis.skills.email_notifier import EmailNotifierSkill
+                        email_skill = EmailNotifierSkill()
+                        
+                        email_result = email_skill.execute(
+                            to=user_email,
+                            subject=f"JARVIS: {project_type.title()} Project Complete - {project_name}",
+                            body=f"""Hello!
+
+JARVIS has successfully completed your {project_type} project: {project_name}
+
+Project Details:
+- Type: {project_type.title()}
+- Files Created: {files_created}
+- Components: {components}
+- Location: ./{project_name}
+- Created: {time.strftime('%B %d, %Y at %I:%M %p')}
+
+The project includes:
+✅ Complete source code
+✅ Database setup
+✅ API endpoints
+✅ Frontend interface
+✅ Deployment configuration
+✅ Documentation
+
+Next Steps:
+1. Navigate to the project folder
+2. Run npm install to install dependencies
+3. Configure environment variables
+4. Start the development server
+5. Deploy when ready
+
+Best regards,
+JARVIS Development System"""
+                        )
+                        
+                        if email_result.success:
+                            self.speak("I've also sent you an email with project details and next steps.")
+                else:
+                    error = project_result.get("error", "Unknown error")
+                    self.speak(f"I had trouble creating the project: {error}")
+            else:
+                self.speak(f"I couldn't create the project: {result.error_message}")
             return
         
         # Email notification commands - Enhanced detection
